@@ -33,7 +33,7 @@ _localmodcfg=
 # the ARCH defaults. Useful when the package gets updated and you already went
 # through the trouble of customizing your config options.  NOT recommended when
 # a new kernel is released, but again, convenient for package bumps.
-_use_current=y
+_use_current=
 
 ### Running with a 1000 HZ tick rate
 _1k_HZ_ticks=
@@ -44,7 +44,7 @@ _disable_debug=y
 ### Do not edit below this line unless you know what you're doing
 
 pkgbase=mech17-amd-linux-zen-git
-pkgver=c7b590fef
+pkgver=40a327f47
 _srcname=zen-kernel
 pkgrel=1
 pkgdesc='Linux zen kernel for fixing keyboard on eluktronics amd laptop'
@@ -227,7 +227,7 @@ _package() {
 
 _package-headers() {
    pkgdesc="Headers and scripts for building modules for the $pkgdesc kernel"
-   depends=('linux-next-git' 'pahole')
+   depends=($pkgbase 'pahole')
 
   cd $_srcname
   local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
@@ -316,6 +316,5 @@ for _p in "${pkgname[@]}"; do
     _package${_p#$pkgbase}
   }"
 done
-
-sha512sums=('bdeb906e817e95f8b8472913aaaa30fbe0539fd58126c578e0f2f4ca872754857e9b8abc45dd868400b59e9c22fb661ad80b53097390570eb9fff5a7b9d76418'
-            '10b242414ee5cbce52004334a9651010ea96483e83a221fd673f77f762ef38d6c36cb99e8f1805250fda07c0e1f6032bb3b5258139832b39e291708d7ab6b428')
+sha256sums=('abd79110752ac12d410d2969636dc789bb73e1497e39ac7e275444378ba817b6'
+            '223a0206bc3763150f2604c40dc7edb11783e9acd79b0c51e8cfc9c2dedd2d03')
