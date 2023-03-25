@@ -5,7 +5,7 @@
 _makenconfig=
 
 ### Tweak kernel options prior to a build via menuconfig
-_makemenuconfig=
+_makemenuconfig=n
 
 ### Tweak kernel options prior to a build via xconfig
 _makexconfig=
@@ -26,14 +26,14 @@ _NUMAdisable=y
 # This PKGBUILD read the database kept if it exists
 #
 # More at this wiki page ---> https://wiki.archlinux.org/index.php/Modprobed-db
-_localmodcfg=
+_localmodcfg=n
 
 # Use the current kernel's .config file
 # Enabling this option will use the .config of the RUNNING kernel rather than
 # the ARCH defaults. Useful when the package gets updated and you already went
 # through the trouble of customizing your config options.  NOT recommended when
 # a new kernel is released, but again, convenient for package bumps.
-_use_current=
+_use_current=y
 
 ### Running with a 1000 HZ tick rate
 _1k_HZ_ticks=
