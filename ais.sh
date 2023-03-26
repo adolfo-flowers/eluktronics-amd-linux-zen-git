@@ -87,7 +87,7 @@ mount_parts() {
     swapon ${MOUNTPOINT}/.swapvol/swapfile
 
     mkdir  ${MOUNTPOINT}/boot
-    mount /dev/mapper/${BOOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/boot
+    mount -o nodev,nosuid,noexec /dev/mapper/${BOOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/boot
     mkdir  ${MOUNTPOINT}${EFI_MOUNTPOINT}
 
     # Mount the EFI partition
