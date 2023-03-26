@@ -48,7 +48,7 @@ format_parts(){
 
 create_btrfs_subvolumes() {
     echo "\nCreating BTRFS subvolumes..."
-    mount /dev/mapper/crypt ${MOUNTPOINT}
+    mount /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}
     btrfs sub create ${MOUNTPOINT}/@
     btrfs sub create ${MOUNTPOINT}/@home
     btrfs sub create ${MOUNTPOINT}/@cache
@@ -203,7 +203,7 @@ kernel.kptr_restrict = 2
 vm.dirty_ratio = 3
 vm.dirty_background_ratio = 2
 vm.vfs_cache_pressure = 50
-    EOF
+EOF
     echo "\nInstalling mech17 kernel..."
     makepkg -si
 }
@@ -238,7 +238,7 @@ mount_system() {
     mount LABEL=EFI  ${MOUNTPOINT}${EFI_MOUNTPOINT}
 }
 
-load_settings
+#load_settings
 echo "Starting instalation"
 echo "Seetings:"
 echo "Install drive: ${DRIVE}"
@@ -251,20 +251,27 @@ echo "System partition: ${SYSTEM_PART}"
 echo "Boot partition: ${BOOT_PART}"
 echo "Efi mountpoint ${EFI_MOUNTPOINT}"
 echo "Chroot mountpoint ${MOUNTPOINT}"
-# create_partitions
-sleep 2
-# setup_luks
-sleep 2
-# setup_LVM
-sleep 2
-# format_parts
-sleep 2
-# mount_parts
-sleep 2
-# install_base
-# conf_locale_and_time
-sleep 1
-# conf_mkinitcpio
-sleep 2
-# conf_grub
+
+install_mech(){
+    create_partitions
+    sleep 2
+    setup_luks
+    sleep 2
+    format_parts
+    sleep 2
+    create_btrfs_subvolumes
+    sleep 2
+    mount_parts
+    sleep 2
+    install_base
+    conf_locale_and_time
+    sleep 1
+    conf_mkinitcpio
+    sleep 2
+    optimize_mkpkg
+    install_mech_kernel
+    conf_grub
+}
+
+#install_mech
 mount_system
