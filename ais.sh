@@ -100,7 +100,7 @@ install_base() {
     pacstrap ${MOUNTPOINT} base linux linux-firmware grub os-prober efibootmgr dosfstools grub-efi-x86_64 intel-ucode iw wireless_tools dhcpcd dialog wpa_supplicant base base-devel linux linux-firmware amd-ucode btrfs-progs sbsigntools neovim zstd go iwd networkmanager mesa vulkan-radeon libva-mesa-driver mesa-vdpau \
              xf86-video-amdgpu docker libvirt qemu openssh refind zsh zsh-completions \
              zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting git \
-             pigz pbzip2 bc
+             pigz pbzip2 bc unbound
     genfstab -U ${MOUNTPOINT} >> ${MOUNTPOINT}/etc/fstab
     cat ${MOUNTPOINT}/etc/fstab
 }
@@ -190,8 +190,20 @@ optimize_mkpkg() {
 }
 
 install_mech_kernel(){
-    echo "kernel.kptr_restrict=2\nkernel.unprivileged_userns_clone=0\nkernel.kexec_load_disabled = 1" > /etc/sysctl.d/51-kptr-restrict.conf
-    echo "net.core.bpf_jit_harden=2\nkernel.unprivileged_bpf_disabled=1" > /etc/sysctl.d/51-bpf-restrict.conf
+    #https://wiki.archlinux.org/title/Sysctl#TCP/IP_stack_hardening
+    #https://wiki.archlinux.org/title/Security#Kernel_hardening
+    cat << EOF >> ${MOUNTPOINT}/etc/sysctl.d/51-sec.conf
+kernel.unprivileged_bpf_disabled = 1
+net.core.bpf_jit_harden = 2
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+kernel.kexec_load_disabled = 1
+kernel.unprivileged_userns_clone = 0
+kernel.kptr_restrict = 2
+vm.dirty_ratio = 3
+vm.dirty_background_ratio = 2
+vm.vfs_cache_pressure = 50
+    EOF
     echo "\nInstalling mech17 kernel..."
     makepkg -si
 }
