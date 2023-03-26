@@ -40,44 +40,50 @@ setup_luks(){
 }
 
 format_parts(){
+    echo "\nFormatting partitions..."
     mkfs.fat -F32 -n EFI /dev/disk/by-partlabel/EFI
     mkfs.ext2 /dev/mapper/${BOOT_ENCRYPTED_MAPPER_NAME}
     mkfs.btrfs -L ROOT /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME}
 }
 
 create_btrfs_subvolumes() {
-    mount /dev/mapper/crypt /mnt
-    btrfs sub create /mnt/@
-    btrfs sub create /mnt/@home
-    btrfs sub create /mnt/@pkg
-    btrfs sub create /mnt/@abs
-    btrfs sub create /mnt/@tmp
-    btrfs sub create /mnt/@srv
-    btrfs sub create /mnt/@snapshots
-    btrfs sub create /mnt/@btrfs
-    btrfs sub create /mnt/@swap
-    umount /mnt
+    echo "\nCreating BTRFS subvolumes..."
+    mount /dev/mapper/crypt ${MOUNTPOINT}
+    btrfs sub create ${MOUNTPOINT}/@
+    btrfs sub create ${MOUNTPOINT}/@home
+    btrfs sub create ${MOUNTPOINT}/@cache
+    btrfs sub create ${MOUNTPOINT}/@log
+    btrfs sub create ${MOUNTPOINT}/@abs
+    btrfs sub create ${MOUNTPOINT}/@tmp
+    btrfs sub create ${MOUNTPOINT}/@srv
+    btrfs sub create ${MOUNTPOINT}/@snapshots
+    btrfs sub create ${MOUNTPOINT}/@btrfs
+    btrfs sub create ${MOUNTPOINT}/@swap
+    umount ${MOUNTPOINT}
 }
 
 mount_parts() {
+    echo "\nMounting subvolumes.."
     mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@ /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt
-    mkdir -p /mnt/{boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt/home
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@pkg /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt/var/cache/pacman/pkg
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@abs /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt/var/abs
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt/var/tmp
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt/srv
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt/.snapshots
-    mount -o compress=no,space_cache,ssd,discard=async,subvol=@swap /dev/mapper/crypt /mnt/.swapvol
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt/btrfs
+    #mkdir -p /mnt/{boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
+    mkdir -p ${MOUNTPOINT}/{boot,home,.snapshots,.swapvol,btrfs}
+    mkdir -p ${MOUNTPOINT}/var/{cache/pacman/pkg,abs,tmp}
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/home
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@cache /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/cache
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@log /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/log
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@abs /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/abs
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/tmp
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/srv
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/.snapshots
+    mount -o compress=no,space_cache,ssd,discard=async,subvol=@swap /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/.swapvol
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/btrfs
 
     # Create Swapfile
     truncate -s 0 ${MOUNTPOINT}/.swapvol/swapfile
     chattr +C ${MOUNTPOINT}/.swapvol/swapfile
-    btrfs property set ${MOUNTPOINT}/.swapvol/swapfile compression none
-    fallocate -l 18G ${MOUNTPOINT}/.swapvol/swapfile
+    btrfs filesystem mkswapfile --size 17g
     chmod 600 ${MOUNTPOINT}/.swapvol/swapfile
-    mkswap ${MOUNTPOINT}/.swapvol/swapfile
+    #mkswap ${MOUNTPOINT}/.swapvol/swapfile
     swapon ${MOUNTPOINT}/.swapvol/swapfile
 
     mkdir  ${MOUNTPOINT}/boot
@@ -89,6 +95,8 @@ mount_parts() {
 }
 
 install_base() {
+    echo "\nInstalling base system..."
+
     pacstrap ${MOUNTPOINT} base linux linux-firmware grub os-prober efibootmgr dosfstools grub-efi-x86_64 intel-ucode iw wireless_tools dhcpcd dialog wpa_supplicant base base-devel linux linux-firmware amd-ucode btrfs-progs sbsigntools neovim zstd go iwd networkmanager mesa vulkan-radeon libva-mesa-driver mesa-vdpau \
              xf86-video-amdgpu docker libvirt qemu openssh refind zsh zsh-completions \
              zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting git \
@@ -98,6 +106,8 @@ install_base() {
 }
 
 conf_locale_and_time() {
+    echo "\nConfiguring time locale and host..."
+
     timedatectl set-ntp true
     # Replace username with the name for your new user
     export USER=koolkat
@@ -138,6 +148,8 @@ EOF
 }
 
 conf_mkinitcpio() {
+    echo "\nConfiguring iniramfs..."
+
     sed -i 's/MODULES=()/MODULES=(amdgpu)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/FILES=()/FILES=/crypto_keyfile.bin/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' ${MOUNTPOINT}/etc/mkinitcpio.conf
@@ -152,25 +164,8 @@ conf_mkinitcpio() {
     chroot_cmd "mkinitcpio -p linux"
 }
 
-# add boot partition to crypttab (replace <identifier> with UUID from 'blkid /dev/sda2')
-conf_grub(){
-    # Get resume  offset for BTRFS swapfile
-    cd /root/
-    curl -LJO https://raw.githubusercontent.com/osandov/osandov-linux/master/scripts/btrfs_map_physical.c
-    gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
-    rm btrfs_map_physical.c
-    mv btrfs_map_physical /usr/local/bin
-
-    sed -i -e "s@GRUB_CMDLINE_LINUX=.*@GRUB_CMDLINE_LINUX=\"rd.luks.name=$(blkid /dev/nvme0n1p3 | cut -d " " -f2 | cut -d '=' -f2 | sed 's/\"//g')=crypt root=/dev/mapper/crypt rootflags=subvol=@ resume=/dev/mapper/crypt resume_offset=$( echo "$(btrfs_map_physical ${MOUNTPOINT}/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img acpi_backlight=native acpi_osi=linux nvidia_drm.modeset=1 apparmor=1 security=apparmor\"@g" ${MOUNTPOINT}/etc/default/grub
-
-
-    echo "GRUB_ENABLE_CRYPTODISK=y" >> ${MOUNTPOINT}/etc/default/grub
-    echo "${BOOT_ENCRYPTED_MAPPER_NAME}  ${BOOT_PART}    /crypto_keyfile.bin     noauto,luks" >> ${MOUNTPOINT}/etc/crypttab
-    chroot_cmd "grub-install --target=x86_64-efi --efi-directory=${EFI_MOUNTPOINT} --bootloader-id=arch_grub --recheck"
-    chroot_cmd "grub-mkconfig -o /boot/grub/grub.cfg"
-}
-
 optimize_mkpkg() {
+    echo "\nSetting compiler flags for makepkg..."
     # Optimize Makepkg
     sed -i 's/^CFLAGS/CFLAGS="-march=native -mtune=native -O2 -pipe -fstack-protector-strong --param=ssp-buffer-size=4 -fno-plt"/' ${MOUNTPOINT}/etc/makepkg.conf
     sed -i 's/^CXXFLAGS/CXXFLAGS="${CFLAGS}"/' ${MOUNTPOINT}/etc/makepkg.conf
@@ -192,6 +187,29 @@ optimize_mkpkg() {
     sed -i 's/#Color/Color\\\nILoveCandy/' ${MOUNTPOINT}/etc/pacman.conf
     sed -i 's/#TotalDownload/TotalDownload/' ${MOUNTPOINT}/etc/pacman.conf
     sed -i 's/#CheckSpace/CheckSpace/' ${MOUNTPOINT}/etc/pacman.conf
+}
+
+install_mech_kernel(){
+    echo "\nInstalling mech17 kernel..."
+    makepkg -si
+}
+
+# add boot partition to crypttab (replace <identifier> with UUID from 'blkid /dev/sda2')
+conf_grub(){
+    echo "\nConfiguring GRUB..."
+    # Get resume  offset for BTRFS swapfile
+    curl -LJO https://raw.githubusercontent.com/osandov/osandov-linux/master/scripts/btrfs_map_physical.c
+    gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
+    rm btrfs_map_physical.c
+    mv btrfs_map_physical /usr/local/bin
+
+    sed -i -e "s@GRUB_CMDLINE_LINUX=.*@GRUB_CMDLINE_LINUX=\"rd.luks.name=$(blkid /dev/nvme0n1p3 | cut -d " " -f2 | cut -d '=' -f2 | sed 's/\"//g')=${ROOT_ENCRYPTED_MAPPER_NAME} root=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} rootflags=subvol=@ resume=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} resume_offset=$( echo "$(btrfs_map_physical ${MOUNTPOINT}/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img acpi_backlight=native acpi_osi=linux nvidia_drm.modeset=1 apparmor=1 security=apparmor\"@g" ${MOUNTPOINT}/etc/default/grub
+
+
+    echo "GRUB_ENABLE_CRYPTODISK=y" >> ${MOUNTPOINT}/etc/default/grub
+    echo "${BOOT_ENCRYPTED_MAPPER_NAME}  ${BOOT_PART}    /crypto_keyfile.bin     noauto,luks" >> ${MOUNTPOINT}/etc/crypttab
+    chroot_cmd "grub-install --target=x86_64-efi --efi-directory=${EFI_MOUNTPOINT} --bootloader-id=arch_grub --recheck"
+    chroot_cmd "grub-mkconfig -o /boot/grub/grub.cfg"
 }
 
 mount_system() {
