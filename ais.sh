@@ -190,6 +190,8 @@ optimize_mkpkg() {
 }
 
 install_mech_kernel(){
+    echo "kernel.kptr_restrict=2\nkernel.unprivileged_userns_clone=0\nkernel.kexec_load_disabled = 1" > /etc/sysctl.d/51-kptr-restrict.conf
+    echo "net.core.bpf_jit_harden=2\nkernel.unprivileged_bpf_disabled=1" > /etc/sysctl.d/51-bpf-restrict.conf
     echo "\nInstalling mech17 kernel..."
     makepkg -si
 }
@@ -203,7 +205,7 @@ conf_grub(){
     rm btrfs_map_physical.c
     mv btrfs_map_physical /usr/local/bin
 
-    sed -i -e "s@GRUB_CMDLINE_LINUX=.*@GRUB_CMDLINE_LINUX=\"rd.luks.name=$(blkid /dev/nvme0n1p3 | cut -d " " -f2 | cut -d '=' -f2 | sed 's/\"//g')=${ROOT_ENCRYPTED_MAPPER_NAME} root=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} rootflags=subvol=@ resume=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} resume_offset=$( echo "$(btrfs_map_physical ${MOUNTPOINT}/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img acpi_backlight=native acpi_osi=linux nvidia_drm.modeset=1 apparmor=1 security=apparmor\"@g" ${MOUNTPOINT}/etc/default/grub
+    sed -i -e "s@GRUB_CMDLINE_LINUX=.*@GRUB_CMDLINE_LINUX=\"lockdown=confidentiality rd.luks.name=$(blkid /dev/nvme0n1p3 | cut -d " " -f2 | cut -d '=' -f2 | sed 's/\"//g')=${ROOT_ENCRYPTED_MAPPER_NAME} root=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} rootflags=subvol=@ resume=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} resume_offset=$( echo "$(btrfs_map_physical ${MOUNTPOINT}/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img acpi_backlight=native acpi_osi=linux nvidia_drm.modeset=1 apparmor=1 security=apparmor\"@g" ${MOUNTPOINT}/etc/default/grub
 
 
     echo "GRUB_ENABLE_CRYPTODISK=y" >> ${MOUNTPOINT}/etc/default/grub
