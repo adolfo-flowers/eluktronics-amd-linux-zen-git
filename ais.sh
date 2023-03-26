@@ -10,9 +10,10 @@ EFI_MOUNTPOINT="/boot/efi"
 MOUNTPOINT="/mnt"
 
 load_settings() {
-    #mount -o remount,size=2G /run/archiso/cowspace
-    loadkeys $KEYMAP
-    setfont sun12x22
+    mount -o remount,size=2G /run/archiso/cowspace
+    pacman -S build-tools
+    #loadkeys $KEYMAP
+    #setfont sun12x22
 }
 
 chroot_cmd() {
@@ -67,26 +68,27 @@ mount_parts() {
     mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@ /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} /mnt
     #mkdir -p /mnt/{boot,home,var/cache/pacman/pkg,.snapshots,.swapvol,btrfs}
     mkdir -p ${MOUNTPOINT}/{boot,home,.snapshots,.swapvol,btrfs}
-    mkdir -p ${MOUNTPOINT}/var/{cache/pacman/pkg,abs,tmp}
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/home
-    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@cache /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/cache
-    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@log /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/log
-    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@abs /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/abs
-    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/tmp
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/srv
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/.snapshots
-    mount -o compress=no,space_cache,ssd,discard=async,subvol=@swap /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/.swapvol
-    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/btrfs
+    mkdir -p ${MOUNTPOINT}/var/{cache,abs,tmp,log}
+    mkdir -p ${MOUNTPOINT}/srv
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvol=@home /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/home
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvol=@cache /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/cache
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvol=@log /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/log
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvol=@abs /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/abs
+    mount -o nodev,nosuid,noexec,noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvol=@tmp /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/var/tmp
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvol=@srv /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/srv
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvol=@snapshots /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/.snapshots
+    mount -o compress=no,space_cache=v2,ssd,discard=async,subvol=@swap /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/.swapvol
+    mount -o noatime,nodiratime,compress=zstd,commit=120,space_cache=v2,ssd,discard=async,autodefrag,subvolid=5 /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/btrfs
 
     # Create Swapfile
-    truncate -s 0 ${MOUNTPOINT}/.swapvol/swapfile
-    chattr +C ${MOUNTPOINT}/.swapvol/swapfile
-    btrfs filesystem mkswapfile --size 17g
+    #truncate -s 0 ${MOUNTPOINT}/.swapvol/swapfile
+    #chattr +C ${MOUNTPOINT}/.swapvol/swapfile
+    btrfs filesystem mkswapfile --size 17g ${MOUNTPOINT}/.swapvol/swapfile
     chmod 600 ${MOUNTPOINT}/.swapvol/swapfile
     #mkswap ${MOUNTPOINT}/.swapvol/swapfile
     swapon ${MOUNTPOINT}/.swapvol/swapfile
 
-    mkdir  ${MOUNTPOINT}/boot
+    #mkdir  ${MOUNTPOINT}/boot
     mount -o nodev,nosuid,noexec /dev/mapper/${BOOT_ENCRYPTED_MAPPER_NAME} ${MOUNTPOINT}/boot
     mkdir  ${MOUNTPOINT}${EFI_MOUNTPOINT}
 
@@ -151,7 +153,7 @@ conf_mkinitcpio() {
     echo "\nConfiguring iniramfs..."
 
     sed -i 's/MODULES=()/MODULES=(amdgpu)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
-    sed -i 's/FILES=()/FILES=/crypto_keyfile.bin/' ${MOUNTPOINT}/etc/mkinitcpio.conf
+    echo 'FILES="/crypto_keyfile.bin/"' >> ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/^HOOKS/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
@@ -159,8 +161,8 @@ conf_mkinitcpio() {
     ### dont ask pass second time for boot part
     dd bs=512 count=4 if=/dev/random of=${MOUNTPOINT}/crypto_keyfile.bin iflag=fullblock
     chroot_cmd "chmod 600 /crypto_keyfile.bin"
-    sudo cryptsetup luksAddKey /dev/nvme0n1p2 /crypto_keyfile.bin
-    sudo cryptsetup luksAddKey /dev/nvme0n1p3 /crypto_keyfile.bin
+    chroot_cmd "cryptsetup luksAddKey /dev/nvme0n1p2 /crypto_keyfile.bin"
+    chroot_cmd "cryptsetup luksAddKey /dev/nvme0n1p3 /crypto_keyfile.bin"
     chroot_cmd "mkinitcpio -p linux"
 }
 
@@ -217,7 +219,7 @@ conf_grub(){
     rm btrfs_map_physical.c
     mv btrfs_map_physical /usr/local/bin
 
-    sed -i -e "s@GRUB_CMDLINE_LINUX=.*@GRUB_CMDLINE_LINUX=\"lockdown=confidentiality rd.luks.name=$(blkid /dev/nvme0n1p3 | cut -d " " -f2 | cut -d '=' -f2 | sed 's/\"//g')=${ROOT_ENCRYPTED_MAPPER_NAME} root=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} rootflags=subvol=@ resume=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} resume_offset=$( echo "$(btrfs_map_physical ${MOUNTPOINT}/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img acpi_backlight=native acpi_osi=linux nvidia_drm.modeset=1 apparmor=1 security=apparmor\"@g" ${MOUNTPOINT}/etc/default/grub
+    sed -i -e "s%GRUB_CMDLINE_LINUX=.*%GRUB_CMDLINE_LINUX=\"lockdown=confidentiality rd.luks.name=$(blkid /dev/nvme0n1p3 | cut -d " " -f2 | cut -d '=' -f2 | sed 's/\"//g')=${ROOT_ENCRYPTED_MAPPER_NAME} root=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} rootflags=subvol=@ resume=/dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME} resume_offset=$( echo "$(btrfs_map_physical ${MOUNTPOINT}/.swapvol/swapfile | head -n2 | tail -n1 | awk '{print $6}') / $(getconf PAGESIZE) " | bc) rw quiet nmi_watchdog=0 add_efi_memmap initrd=/amd-ucode.img acpi_backlight=native acpi_osi=linux nvidia_drm.modeset=1 apparmor=1 security=apparmor\"%g" ${MOUNTPOINT}/etc/default/grub
 
 
     echo "GRUB_ENABLE_CRYPTODISK=y" >> ${MOUNTPOINT}/etc/default/grub
