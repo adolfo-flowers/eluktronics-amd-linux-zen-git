@@ -118,8 +118,8 @@ conf_locale_and_time() {
     # Replace Europe/London with your Region/City
     export TZ="America/Mexico_City"
     # - set locale
-    echo "en_US.UTF-8 UTF-8" > locale.gen
-    locale-gen
+    echo "en_US.UTF-8 UTF-8" > ${MOUNTPOINT}/etc/locale.gen
+    chroot_cmd locale-gen
     echo "LANG=\"en_US.UTF-8\"" > ${MOUNTPOINT}/etc/locale.conf
     echo "KEYMAP=us" > ${MOUNTPOINT}/etc/vconsole.conf
     export LANG="en_US.UTF-8"
@@ -240,7 +240,7 @@ mount_system() {
     mount LABEL=EFI  ${MOUNTPOINT}${EFI_MOUNTPOINT}
 }
 
-#load_settings
+load_settings
 echo "Starting instalation"
 echo "Seetings:"
 echo "Install drive: ${DRIVE}"
