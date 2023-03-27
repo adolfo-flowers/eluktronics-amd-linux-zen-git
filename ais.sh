@@ -157,7 +157,7 @@ conf_mkinitcpio() {
     echo "FILES=/etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key" >> ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
-    sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
+    sed -i 's/HOOKS=.*/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
 
     ### dont ask pass second time for boot part
     mkdir ${MOUNTPOINT}/etc/cryptsetup-keys.d
