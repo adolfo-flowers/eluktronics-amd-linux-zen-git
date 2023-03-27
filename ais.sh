@@ -1,6 +1,6 @@
 set -e
 FS_TYPE="f2fs"
-DRIVE="/dev/sda"
+DRIVE="/dev/CHANGETHIS nvme0n1"
 KEYMAP="en"
 ROOT_ENCRYPTED_MAPPER_NAME="cryptsystem"
 BOOT_ENCRYPTED_MAPPER_NAME="cryptboot"
@@ -11,7 +11,7 @@ MOUNTPOINT="/mnt"
 
 load_settings() {
     mount -o remount,size=2G /run/archiso/cowspace
-    pacman -S build-tools
+    pacman -S base-devel
     #loadkeys $KEYMAP
     #setfont sun12x22
 }
@@ -33,8 +33,8 @@ create_partitions(){
 
 setup_luks(){
     echo "\nCreate encrypted boot partition\n"
-    cryptsetup luksFormat --perf-no_read_workqueue --perf-no_write_workqueue --type luks2 --cipher aes-xts-plain64 --key-size 512 --iter-time 5000 --pbkdf argon2id --hash sha3-512 ${BOOT_PART}
-    cryptsetup --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent open ${BOOT_PART} ${BOOT_ENCRYPTED_MAPPER_NAME}
+    cryptsetup --perf-no_read_workqueue --perf-no_write_workqueue --type luks1 --cipher aes-xts-plain64 --key-size 512 --hash sha512 --iter-time 5000 --use-random --verify-passphrase luksFormat ${BOOT_PART}
+    cryptsetup open --type luks ${BOOT_PART} ${BOOT_ENCRYPTED_MAPPER_NAME}
     echo "\nCreate encrypted main partition\n"
     cryptsetup luksFormat --perf-no_read_workqueue --perf-no_write_workqueue --type luks2 --cipher aes-xts-plain64 --key-size 512 --iter-time 2000 --pbkdf argon2id --hash sha3-512 ${SYSTEM_PART}
     cryptsetup --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent open ${SYSTEM_PART} ${ROOT_ENCRYPTED_MAPPER_NAME}
@@ -61,6 +61,7 @@ create_btrfs_subvolumes() {
     btrfs sub create ${MOUNTPOINT}/@btrfs
     btrfs sub create ${MOUNTPOINT}/@swap
     umount ${MOUNTPOINT}
+    btrfs check --clear-space-cache v2 /dev/mapper/${ROOT_ENCRYPTED_MAPPER_NAME}
 }
 
 mount_parts() {
@@ -99,8 +100,8 @@ mount_parts() {
 install_base() {
     echo "\nInstalling base system..."
 
-    pacstrap ${MOUNTPOINT} base linux linux-firmware grub os-prober efibootmgr dosfstools grub-efi-x86_64 intel-ucode iw wireless_tools dhcpcd dialog wpa_supplicant base base-devel linux linux-firmware amd-ucode btrfs-progs sbsigntools neovim zstd go iwd networkmanager mesa vulkan-radeon libva-mesa-driver mesa-vdpau \
-             xf86-video-amdgpu docker libvirt qemu openssh refind zsh zsh-completions \
+    pacstrap ${MOUNTPOINT} base linux linux-firmware grub os-prober efibootmgr dosfstools grub-efi-x86_64 intel-ucode iw wireless_tools dhcpcd dialog wpa_supplicant base base-devel linux linux-firmware amd-ucode btrfs-progs sbsigntools zstd go iwd networkmanager mesa vulkan-radeon libva-mesa-driver mesa-vdpau \
+             xf86-video-amdgpu docker libvirt qemu openssh zsh zsh-completions \
              zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting git \
              pigz pbzip2 bc unbound
     genfstab -U ${MOUNTPOINT} >> ${MOUNTPOINT}/etc/fstab
@@ -156,9 +157,10 @@ conf_mkinitcpio() {
     echo "FILES=/etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key" >> ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
-    sed -i 's/^HOOKS/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
+    sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
 
     ### dont ask pass second time for boot part
+    mkdir ${MOUNTPOINT}/etc/cryptsetup-keys.d
     dd bs=512 count=4 if=/dev/random of=${MOUNTPOINT}/etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key iflag=fullblock
     chroot_cmd "chmod 600 /etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key"
     chroot_cmd "cryptsetup luksAddKey /dev/nvme0n1p2 /etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key"
@@ -207,6 +209,7 @@ vm.dirty_background_ratio = 2
 vm.vfs_cache_pressure = 50
 EOF
     echo "\nInstalling mech17 kernel..."
+
     makepkg -si
 }
 
@@ -224,7 +227,7 @@ conf_grub(){
 
     echo "GRUB_ENABLE_CRYPTODISK=y" >> ${MOUNTPOINT}/etc/default/grub
     echo "${BOOT_ENCRYPTED_MAPPER_NAME}  ${BOOT_PART}   /etc/cryptsetup-keys.d/${BOOT_ENCRYPTED_MAPPER_NAME}.key     noauto,luks" >> ${MOUNTPOINT}/etc/crypttab
-    chroot_cmd 'grub-install --target=x86_64-efi --efi-directory=${EFI_MOUNTPOINT} --bootloader-id=arch_grub --recheck  --modules="luks2 part_gpt cryptodisk"'
+    chroot_cmd "grub-install --target=x86_64-efi --efi-directory=${EFI_MOUNTPOINT} --bootloader-id=arch_grub --recheck"
     chroot_cmd "grub-mkconfig -o /boot/grub/grub.cfg"
 }
 
@@ -270,8 +273,8 @@ install_mech(){
     sleep 1
     conf_mkinitcpio
     sleep 2
-    optimize_mkpkg
-    install_mech_kernel
+    #optimize_mkpkg
+    #install_mech_kernel
     conf_grub
 }
 
