@@ -153,16 +153,16 @@ conf_mkinitcpio() {
     echo "\nConfiguring iniramfs..."
 
     sed -i 's/MODULES=()/MODULES=(amdgpu)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
-    echo 'FILES="/crypto_keyfile.bin/"' >> ${MOUNTPOINT}/etc/mkinitcpio.conf
+    echo "FILES=/etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key" >> ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION="lz4"/COMPRESSION="lz4"/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/#COMPRESSION_OPTIONS=()/COMPRESSION_OPTIONS=(-9)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
     sed -i 's/^HOOKS/HOOKS=(base systemd autodetect modconf block sd-encrypt resume filesystems keyboard fsck)/' ${MOUNTPOINT}/etc/mkinitcpio.conf
 
     ### dont ask pass second time for boot part
-    dd bs=512 count=4 if=/dev/random of=${MOUNTPOINT}/crypto_keyfile.bin iflag=fullblock
-    chroot_cmd "chmod 600 /crypto_keyfile.bin"
-    chroot_cmd "cryptsetup luksAddKey /dev/nvme0n1p2 /crypto_keyfile.bin"
-    chroot_cmd "cryptsetup luksAddKey /dev/nvme0n1p3 /crypto_keyfile.bin"
+    dd bs=512 count=4 if=/dev/random of=${MOUNTPOINT}/etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key iflag=fullblock
+    chroot_cmd "chmod 600 /etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key"
+    chroot_cmd "cryptsetup luksAddKey /dev/nvme0n1p2 /etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key"
+    chroot_cmd "cryptsetup luksAddKey /dev/nvme0n1p3 /etc/cryptsetup-keys.d/${ROOT_ENCRYPTED_MAPPER_NAME}.key"
     chroot_cmd "mkinitcpio -p linux"
 }
 
@@ -223,8 +223,8 @@ conf_grub(){
 
 
     echo "GRUB_ENABLE_CRYPTODISK=y" >> ${MOUNTPOINT}/etc/default/grub
-    echo "${BOOT_ENCRYPTED_MAPPER_NAME}  ${BOOT_PART}    /crypto_keyfile.bin     noauto,luks" >> ${MOUNTPOINT}/etc/crypttab
-    chroot_cmd "grub-install --target=x86_64-efi --efi-directory=${EFI_MOUNTPOINT} --bootloader-id=arch_grub --recheck"
+    echo "${BOOT_ENCRYPTED_MAPPER_NAME}  ${BOOT_PART}   /etc/cryptsetup-keys.d/${BOOT_ENCRYPTED_MAPPER_NAME}.key     noauto,luks" >> ${MOUNTPOINT}/etc/crypttab
+    chroot_cmd 'grub-install --target=x86_64-efi --efi-directory=${EFI_MOUNTPOINT} --bootloader-id=arch_grub --recheck  --modules="luks2 part_gpt cryptodisk"'
     chroot_cmd "grub-mkconfig -o /boot/grub/grub.cfg"
 }
 
