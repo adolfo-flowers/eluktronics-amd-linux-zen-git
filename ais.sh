@@ -103,7 +103,7 @@ install_base() {
     pacstrap ${MOUNTPOINT} base linux linux-firmware grub os-prober efibootmgr dosfstools grub-efi-x86_64 intel-ucode iw wireless_tools dhcpcd dialog wpa_supplicant base base-devel linux linux-firmware amd-ucode btrfs-progs sbsigntools zstd go iwd networkmanager mesa vulkan-radeon libva-mesa-driver mesa-vdpau \
              xf86-video-amdgpu docker libvirt qemu openssh zsh zsh-completions \
              zsh-autosuggestions zsh-history-substring-search zsh-syntax-highlighting git \
-             pigz pbzip2 bc unbound
+             pigz pbzip2 bc unbound vim
     genfstab -U ${MOUNTPOINT} >> ${MOUNTPOINT}/etc/fstab
     cat ${MOUNTPOINT}/etc/fstab
 }
@@ -131,7 +131,7 @@ conf_locale_and_time() {
     # - set hostname
     echo $HOST > ${MOUNTPOINT}/etc/hostname
     # - add user
-    chroot_cmd "useradd -mg users -G wheel,storage,power,docker,libvirt,kvm -s /bin/zsh $USER"
+    chroot_cmd "useradd -mg users -G wheel,storage,power,docker,libvirt,kvm -r -s /bin/zsh $USER"
 
     echo "$USER ALL=(ALL) ALL" >> ${MOUNTPOINT}/etc/sudoers
     echo "Defaults timestamp_timeout=0" >> ${MOUNTPOINT}/etc/sudoers
